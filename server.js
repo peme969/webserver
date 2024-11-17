@@ -21,7 +21,7 @@ wss.on('connection', ws => {
   console.log('Client connected.');
 
   ws.on('message', message => {
-    const codeToRun = message.trim() || "print('hello world')"; // Use default code if input is empty
+    const codeToRun = message.toString().trim() || "print('hello world')"; // Convert to string and trim
 
     // Execute the Python code
     const python = spawn('python', ['-c', codeToRun]);
