@@ -1,12 +1,29 @@
 const WebSocket = require('ws');
 const { spawn } = require('child_process');
+const express = require('express');
 
 const PORT = process.env.PORT || 3000;
 
-const server = new WebSocket.Server({ noServer: true });
+// Create an Express app for basic HTTP responses
+const app = express();
+app.get('/', (req, res) => {
+  res.send('WebSocket server is running!');
+});
 
-server.on('connection', ws => {
+// Create an HTTP server and attach WebSocket
+const server = app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
+
+const wss = new WebSocket.Server({ server });
+
+wss.on('connection', ws => {
+  console.log('Client connected.');
+
   ws.on('message', message => {
+    console.log(`Received: ${message}`);
+
+    // Execute the Python code
     const python = spawn('python', ['-c', message]);
 
     python.stdout.on('data', data => {
@@ -23,24 +40,6 @@ server.on('connection', ws => {
   });
 
   ws.on('close', () => {
-    console.log('Client disconnected');
+    console.log('Client disconnected.');
   });
-});
-
-const http = require('http');
-const app = require('express')();
-
-app.get('/', (req, res) => {
-  res.send('Python WebSocket server is running!');
-});
-
-const httpServer = http.createServer(app);
-httpServer.on('upgrade', (request, socket, head) => {
-  server.handleUpgrade(request, socket, head, ws => {
-    server.emit('connection', ws, request);
-  });
-});
-
-httpServer.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
 });
