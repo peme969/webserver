@@ -1,13 +1,18 @@
 {
-  "name": "python-websocket-server",
+  "name": "websocket-python-executor",
   "version": "1.0.0",
-  "description": "A Python WebSocket server for running code.",
+  "description": "A WebSocket server for executing Python code.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "ws": "^8.13.0",
-    "express": "^4.18.2"
-  }
+    "express": "^4.18.2",
+    "ws": "^8.13.0"
+  },
+  "engines": {
+    "node": ">=14.x"
+  },
+  "author": "",
+  "license": "MIT"
 }
