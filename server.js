@@ -21,21 +21,21 @@ wss.on('connection', ws => {
   console.log('Client connected.');
 
   ws.on('message', message => {
-    console.log(`Received: ${message}`);
+    const codeToRun = message.trim() || "print('hello world')"; // Use default code if input is empty
 
     // Execute the Python code
-    const python = spawn('python', ['-c', message]);
+    const python = spawn('python', ['-c', codeToRun]);
 
     python.stdout.on('data', data => {
-      ws.send(data.toString());
+      ws.send(data.toString().trim()); // Send Python output, trimmed of newlines
     });
 
     python.stderr.on('data', data => {
-      ws.send(`Error: ${data.toString()}`);
+      ws.send(`Error: ${data.toString().trim()}`); // Send Python error, trimmed of newlines
     });
 
-    python.on('close', () => {
-      ws.send('Execution completed.\n');
+    python.on('close', code => {
+      console.log(`Python process exited with code ${code}`);
     });
   });
 
