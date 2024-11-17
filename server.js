@@ -21,22 +21,29 @@ wss.on('connection', ws => {
   console.log('Client connected.');
 
   ws.on('message', message => {
-    const codeToRun = message.toString().trim() || "print('hello world')"; // Convert to string and trim
+    const request = JSON.parse(message.toString()); // Parse the message as JSON
 
-    // Execute the Python code
-    const python = spawn('python', ['-c', codeToRun]);
+    if (request.action === 'execute') {
+      // Run the provided Python code or default code
+      const codeToRun = request.code.trim() || "print('hello world')";
 
-    python.stdout.on('data', data => {
-      ws.send(data.toString().trim()); // Send Python output, trimmed of newlines
-    });
+      // Execute the Python code
+      const python = spawn('python', ['-c', codeToRun]);
 
-    python.stderr.on('data', data => {
-      ws.send(`Error: ${data.toString().trim()}`); // Send Python error, trimmed of newlines
-    });
+      python.stdout.on('data', data => {
+        ws.send(data.toString()); // Send the Python script's output
+      });
 
-    python.on('close', code => {
-      console.log(`Python process exited with code ${code}`);
-    });
+      python.stderr.on('data', data => {
+        ws.send(`Error: ${data.toString()}`); // Send any errors
+      });
+
+      python.on('close', code => {
+        console.log(`Python process exited with code ${code}`);
+      });
+    } else {
+      ws.send('Invalid action or no action specified.');
+    }
   });
 
   ws.on('close', () => {
