@@ -32,33 +32,35 @@ wss.on('connection', (ws) => {
             // Execute the temporary Python file
             const pythonProcess = spawn('python3', [tempFile]);
 
-            // Send Python process stdout to WebSocket
+            // Capture and log Python stdout
             pythonProcess.stdout.on('data', (data) => {
+                console.log(`Python Output: ${data.toString()}`);
                 ws.send(data.toString());
             });
 
-            // Send Python process stderr to WebSocket
+            // Capture and log Python stderr
             pythonProcess.stderr.on('data', (data) => {
-                ws.send(`ERROR: ${data}`);
+                console.error(`Python Error: ${data.toString()}`);
+                ws.send(`ERROR: ${data.toString()}`);
             });
 
-            // Handle Python process exit
+            // Handle process close event
             pythonProcess.on('close', (code) => {
-                ws.send(`Python process exited with code ${code}`);
                 console.log(`Python process exited with code ${code}`);
+                ws.send(`Python process exited with code ${code}`);
 
-                // Delete the temporary file after execution
+                // Delete the temporary file
                 try {
                     fs.unlinkSync(tempFile);
                     console.log(`Temporary file deleted: ${tempFile}`);
                 } catch (err) {
-                    console.error(`Failed to delete temp file: ${err}`);
+                    console.error(`Failed to delete temp file: ${err.message}`);
                 }
             });
 
         } catch (err) {
-            ws.send(`ERROR: Failed to create or execute the Python script: ${err}`);
-            console.error(`File operation or process error: ${err}`);
+            ws.send(`ERROR: Failed to create or execute the Python script: ${err.message}`);
+            console.error(`File or Process Error: ${err.message}`);
         }
     });
 
