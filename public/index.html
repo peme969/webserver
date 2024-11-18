@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Python Terminal</title>
+    <title>Advanced Python Terminal</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm/css/xterm.css">
     <style>
         body {
@@ -15,60 +15,82 @@
             background-color: #1e1e1e;
         }
         #terminal {
-            width: 80%;
-            height: 80%;
+            width: 100%;
+            height: 100%;
         }
     </style>
 </head>
 <body>
     <div id="terminal"></div>
     <script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links/lib/xterm-addon-web-links.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-unicode11/lib/xterm-addon-unicode11.js"></script>
     <script>
+        // Create an instance of the xterm.js terminal with additional add-ons
         const term = new Terminal({
+            screenKeys: true,
+            useStyle: true,
             cursorBlink: true,
-            theme: {
-                background: '#1e1e1e',
-                foreground: '#ffffff'
-            }
-        });
-        term.open(document.getElementById('terminal'));
-
-        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const ws = new WebSocket(`${protocol}//${location.host}`);
-
-        let codeBuffer = '';
-
-        // Handle terminal input
-        term.onData((data) => {
-            if (data === '\r') { // User presses Enter
-                if (codeBuffer.trim()) {
-                    ws.send(codeBuffer); // Send the complete code buffer
-                    codeBuffer = ''; // Reset the buffer
-                    term.write('\r\n'); // Move to the next line in the terminal
-                } else {
-                    term.write('\r\n'); // Empty line, just move to the next line
-                }
-            } else {
-                codeBuffer += data; // Append user input to the buffer
-                term.write(data); // Echo the input in the terminal
-            }
         });
 
-        // Handle server messages
-        ws.onmessage = (event) => {
-            term.write(`\r\n${event.data}\r\n`); // Display server response
+        // Add support for clickable links
+        term.loadAddon(new WebLinksAddon.WebLinksAddon());
+
+        // Add Unicode 11 support
+        const unicodeAddon = new Unicode11Addon.Unicode11Addon();
+        term.loadAddon(unicodeAddon);
+        term.unicode.activeVersion = '11';
+
+        // Terminal settings
+        term.setOption("fontFamily", "monospace");
+        term.setOption('scrollback', 9999999);
+
+        // Add fit functionality
+        const fit = new FitAddon.FitAddon();
+        term.loadAddon(fit);
+
+        // Open terminal in the #terminal div
+        term.open(document.getElementById("terminal"));
+        fit.fit();
+
+        // Set up WebSocket connection
+        const proto = location.protocol === "http:" ? "ws://" : "wss://";
+        const query = new URL(location.href).searchParams;
+        query.append("mode", "script"); // Add mode=script to the query parameters
+
+        const websocket = new WebSocket(
+            proto + location.hostname + (location.port ? ":" + location.port : "") + "/term?" + query.toString()
+        );
+        websocket.binaryType = "arraybuffer";
+
+        websocket.onopen = function (event) {
+            // Handle user input and send it to the WebSocket
+            term.onData((data) => websocket.send(new TextEncoder().encode("\x00" + data)));
+
+            // Handle terminal resize and notify the WebSocket
+            term.onResize((data) =>
+                websocket.send(new TextEncoder().encode("\x01" + JSON.stringify(data)))
+            );
+
+            // Update document title when terminal title changes
+            term.onTitleChange((title) => (document.title = title));
+
+            // Display WebSocket messages in the terminal
+            websocket.onmessage = ({ data }) => term.write(new Uint8Array(data));
         };
 
-        // Handle WebSocket connection errors
-        ws.onerror = (event) => {
-            term.write('\r\nWebSocket error. Please try again later.\r\n');
-            console.error('WebSocket error:', event);
+        websocket.onclose = (event) => {
+            // Notify user and destroy terminal on WebSocket close
+            term.write("\r\nSession terminated\r\n");
+            term.destroy();
         };
 
-        // Handle WebSocket disconnection
-        ws.onclose = () => {
-            term.write('\r\nConnection closed.\r\n');
-        };
+        // Automatically resize terminal when window resizes
+        function reportWindowSize() {
+            fit.fit();
+        }
+        window.onresize = reportWindowSize;
     </script>
 </body>
 </html>
