@@ -1,7 +1,22 @@
-const fs = require('fs');
+const express = require('express');
+const { WebSocketServer } = require('ws'); // Import WebSocketServer
 const { spawn } = require('child_process');
+const fs = require('fs');
 
-// WebSocket connection handler
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Serve static files from the 'public' directory
+app.use(express.static('public'));
+
+// Start the HTTP server
+const server = app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+});
+
+// Create a WebSocket server on top of the HTTP server
+const wss = new WebSocketServer({ server });
+
 wss.on('connection', (ws) => {
     console.log('Client connected');
 
