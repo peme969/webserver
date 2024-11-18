@@ -9,9 +9,9 @@
         body {
             margin: 0;
             display: flex;
-            height: 100vh;
             justify-content: center;
             align-items: center;
+            height: 100vh;
             background-color: #1e1e1e;
         }
         #terminal {
@@ -24,18 +24,50 @@
     <div id="terminal"></div>
     <script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
     <script>
-        const term = new Terminal();
+        const term = new Terminal({
+            cursorBlink: true,
+            theme: {
+                background: '#1e1e1e',
+                foreground: '#ffffff'
+            }
+        });
         term.open(document.getElementById('terminal'));
 
-        const ws = new WebSocket(`wss://${location.hostname}:${location.port}`);
+        const ws = new WebSocket(`ws://${location.hostname}:${location.port}`);
 
+        let codeBuffer = '';
+
+        // Handle terminal input
+        term.onData((data) => {
+            if (data === '\r') { // User presses Enter
+                if (codeBuffer.trim()) {
+                    ws.send(codeBuffer); // Send the complete Python code to the server
+                    codeBuffer = ''; // Reset the code buffer
+                    term.write('\r\n'); // Move to the next line in the terminal
+                } else {
+                    term.write('\r\n'); // Empty line, just move to the next line
+                }
+            } else {
+                codeBuffer += data; // Append user input to the buffer
+                term.write(data); // Echo the input in the terminal
+            }
+        });
+
+        // Handle server messages
         ws.onmessage = (event) => {
-            term.write(event.data);
+            term.write(`\r\n${event.data}\r\n`); // Display server response
         };
 
-        term.onData((data) => {
-            ws.send(data);
-        });
+        // Handle WebSocket connection errors
+        ws.onerror = (event) => {
+            term.write('\r\nWebSocket error. Please try again later.\r\n');
+            console.error('WebSocket error:', event);
+        };
+
+        // Handle WebSocket disconnection
+        ws.onclose = () => {
+            term.write('\r\nConnection closed.\r\n');
+        };
     </script>
 </body>
 </html>
