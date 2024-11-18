@@ -84,15 +84,19 @@
         };
 
         // Send Python code to the server when the "Run Code" button is clicked
-        document.getElementById('run-button').addEventListener('click', () => {
-            const code = document.getElementById('code-area').value.trim();
-            if (code) {
-                ws.send(code);
-                term.write(`\r\n>>> ${code}\r\n`);
-            } else {
-                term.write('\r\nNo code to execute.\r\n');
-            }
-        });
+document.getElementById('run-button').addEventListener('click', () => {
+    let code = document.getElementById('code-area').value.trim();
+    // Normalize quotes: replace curly quotes with straight quotes
+    code = code.replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
+    
+    if (code) {
+        ws.send(code);
+        term.write(`\r\n>>> ${code}\r\n`);
+    } else {
+        term.write('\r\nNo code to execute.\r\n');
+    }
+});
+
     </script>
 </body>
 </html>
