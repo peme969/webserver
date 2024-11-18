@@ -1,23 +1,15 @@
-const express = require('express');
-const { WebSocketServer } = require('ws');
-const { spawn } = require('child_process');
+const fs = require('fs');
 
-const PORT = process.env.PORT || 3000;
-const app = express();
+// On WebSocket message
+ws.on('message', (message) => {
+    console.log(`Received: ${message}`);
+    
+    // Write the Python code to a temporary file
+    const tempFile = 'temp_script.py';
+    fs.writeFileSync(tempFile, message);
 
-app.use(express.static('public')); // Serve static files (frontend)
-
-const server = app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-});
-
-const wss = new WebSocketServer({ server });
-
-wss.on('connection', (ws) => {
-    console.log('New WebSocket connection');
-
-    // Spawn a Python process in interactive mode
-    const pythonProcess = spawn('python', ['-i']);
+    // Execute the file
+    const pythonProcess = spawn('python3', [tempFile]);
 
     pythonProcess.stdout.on('data', (data) => {
         ws.send(data.toString());
@@ -27,12 +19,8 @@ wss.on('connection', (ws) => {
         ws.send(`ERROR: ${data}`);
     });
 
-    ws.on('message', (message) => {
-        pythonProcess.stdin.write(message + '\n');
-    });
-
-    ws.on('close', () => {
-        console.log('WebSocket connection closed');
-        pythonProcess.kill();
+    pythonProcess.on('close', (code) => {
+        ws.send(`Python process exited with code ${code}`);
+        fs.unlinkSync(tempFile); // Delete the temporary file
     });
 });
