@@ -19,26 +19,26 @@ wss.on('connection', (ws) => {
     console.log('Client connected');
 
     ws.on('message', (message) => {
-        console.log(`Received Python code: ${message}`);
+        console.log(`Received Python code:\n${message}`);
 
-        // Define an absolute path for the temporary Python script
+        // Define the absolute path for the temporary Python file
         const tempFile = path.join(__dirname, 'temp_script.py');
 
         try {
-            // Write the received code to the temporary file
+            // Write the received Python code to the temporary file
             fs.writeFileSync(tempFile, message, { encoding: 'utf8' });
             console.log(`Python script written to: ${tempFile}`);
 
             // Execute the temporary Python file
             const pythonProcess = spawn('python3', [tempFile]);
 
-            // Capture and log Python stdout
+            // Capture Python stdout
             pythonProcess.stdout.on('data', (data) => {
                 console.log(`Python Output: ${data.toString()}`);
                 ws.send(data.toString());
             });
 
-            // Capture and log Python stderr
+            // Capture Python stderr
             pythonProcess.stderr.on('data', (data) => {
                 console.error(`Python Error: ${data.toString()}`);
                 ws.send(`ERROR: ${data.toString()}`);
@@ -49,12 +49,12 @@ wss.on('connection', (ws) => {
                 console.log(`Python process exited with code ${code}`);
                 ws.send(`Python process exited with code ${code}`);
 
-                // Delete the temporary file
-                try {
+                // Delete the temporary file after execution
+                if (fs.existsSync(tempFile)) {
                     fs.unlinkSync(tempFile);
                     console.log(`Temporary file deleted: ${tempFile}`);
-                } catch (err) {
-                    console.error(`Failed to delete temp file: ${err.message}`);
+                } else {
+                    console.error(`Temporary file not found: ${tempFile}`);
                 }
             });
 
