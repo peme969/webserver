@@ -72,7 +72,8 @@
         };
 
         ws.onmessage = ({ data }) => {
-            term.write(`${data}\r\n`);
+            
+        term.write("Output: \n"+code);
         };
 
         ws.onclose = () => {
@@ -91,7 +92,6 @@ document.getElementById('run-button').addEventListener('click', () => {
     
     if (code) {
         ws.send(code);
-        term.write(`\r\n>>> ${code}\r\n`);
     } else {
         term.write('\r\nNo code to execute.\r\n');
     }
