@@ -3,86 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Python Terminal</title>
+    <title>Python Terminal</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm/css/xterm.css">
     <style>
         body {
             margin: 0;
             display: flex;
-            justify-content: center;
-            align-items: center;
+            flex-direction: column;
             height: 100vh;
             background-color: #1e1e1e;
+            color: #ffffff;
+        }
+        #controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #2e2e2e;
+        }
+        #code-area {
+            flex-grow: 1;
+            margin: 10px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            color: #ffffff;
+            background: #1e1e1e;
+            border: 1px solid #555;
+            border-radius: 5px;
         }
         #terminal {
+            flex-grow: 1;
             width: 100%;
-            height: 100%;
+            background-color: black;
         }
     </style>
 </head>
 <body>
+    <div id="controls">
+        <textarea id="code-area" rows="5" cols="50" placeholder="Write Python code here..."></textarea>
+        <button id="run-button">Run Code</button>
+    </div>
     <div id="terminal"></div>
+
     <script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links/lib/xterm-addon-web-links.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-unicode11/lib/xterm-addon-unicode11.js"></script>
     <script>
-        // Initialize the terminal with the allowProposedApi option enabled
         const term = new Terminal({
-            screenKeys: true,
-            useStyle: true,
             cursorBlink: true,
-            allowProposedApi: true, // Enable proposed API usage
+            theme: { background: '#1e1e1e', foreground: '#ffffff' },
         });
-
-        // Add the Unicode 11 addon
-        const unicodeAddon = new Unicode11Addon.Unicode11Addon();
-        term.loadAddon(unicodeAddon);
-        term.unicode.activeVersion = '11';
-
-        // Add clickable links support
-        term.loadAddon(new WebLinksAddon.WebLinksAddon());
-
-        // Add the FitAddon for resizing the terminal
         const fitAddon = new FitAddon.FitAddon();
         term.loadAddon(fitAddon);
 
-        // Open the terminal in the #terminal div
+        // Open the terminal
         term.open(document.getElementById('terminal'));
         fitAddon.fit();
 
-        // Set up WebSocket communication
-        const proto = location.protocol === 'http:' ? 'ws://' : 'wss://';
-        const websocket = new WebSocket(proto + location.host + '/term');
-
-        websocket.binaryType = 'arraybuffer';
-
-        websocket.onopen = () => {
-            // Handle user input and send to WebSocket
-            term.onData((data) =>
-                websocket.send(new TextEncoder().encode("\x00" + data))
-            );
-
-            // Handle terminal resize events
-            term.onResize((size) => {
-                websocket.send(
-                    new TextEncoder().encode("\x01" + JSON.stringify(size))
-                );
-            });
-
-            // Display WebSocket messages in the terminal
-            websocket.onmessage = ({ data }) => {
-                term.write(new Uint8Array(data));
-            };
-        };
-
-        websocket.onclose = () => {
-            term.write('\r\nSession terminated\r\n');
-            term.destroy();
-        };
-
-        // Automatically fit terminal to window size
+        // Handle window resize
         window.addEventListener('resize', () => fitAddon.fit());
+
+        // Set up WebSocket connection
+        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//${location.host}/term`);
+
+        ws.onopen = () => {
+            term.write('WebSocket connected.\r\n');
+        };
+
+        ws.onmessage = ({ data }) => {
+            term.write(`${data}\r\n`);
+        };
+
+        ws.onclose = () => {
+            term.write('WebSocket connection closed.\r\n');
+        };
+
+        ws.onerror = (error) => {
+            term.write(`WebSocket error: ${error}\r\n`);
+        };
+
+        // Send Python code to the server when the "Run Code" button is clicked
+        document.getElementById('run-button').addEventListener('click', () => {
+            const code = document.getElementById('code-area').value.trim();
+            if (code) {
+                ws.send(code);
+                term.write(`\r\n>>> ${code}\r\n`);
+            } else {
+                term.write('\r\nNo code to execute.\r\n');
+            }
+        });
     </script>
 </body>
 </html>
