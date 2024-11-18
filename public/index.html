@@ -27,70 +27,62 @@
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links/lib/xterm-addon-web-links.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-unicode11/lib/xterm-addon-unicode11.js"></script>
     <script>
-        // Create an instance of the xterm.js terminal with additional add-ons
+        // Initialize the terminal with the allowProposedApi option enabled
         const term = new Terminal({
             screenKeys: true,
             useStyle: true,
             cursorBlink: true,
+            allowProposedApi: true, // Enable proposed API usage
         });
 
-        // Add support for clickable links
-        term.loadAddon(new WebLinksAddon.WebLinksAddon());
-
-        // Add Unicode 11 support
+        // Add the Unicode 11 addon
         const unicodeAddon = new Unicode11Addon.Unicode11Addon();
         term.loadAddon(unicodeAddon);
         term.unicode.activeVersion = '11';
 
-        // Terminal settings
-        term.setOption("fontFamily", "monospace");
-        term.setOption('scrollback', 9999999);
+        // Add clickable links support
+        term.loadAddon(new WebLinksAddon.WebLinksAddon());
 
-        // Add fit functionality
-        const fit = new FitAddon.FitAddon();
-        term.loadAddon(fit);
+        // Add the FitAddon for resizing the terminal
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
 
-        // Open terminal in the #terminal div
-        term.open(document.getElementById("terminal"));
-        fit.fit();
+        // Open the terminal in the #terminal div
+        term.open(document.getElementById('terminal'));
+        fitAddon.fit();
 
-        // Set up WebSocket connection
-        const proto = location.protocol === "http:" ? "ws://" : "wss://";
-        const query = new URL(location.href).searchParams;
-        query.append("mode", "script"); // Add mode=script to the query parameters
+        // Set up WebSocket communication
+        const proto = location.protocol === 'http:' ? 'ws://' : 'wss://';
+        const websocket = new WebSocket(proto + location.host + '/term');
 
-        const websocket = new WebSocket(
-            proto + location.hostname + (location.port ? ":" + location.port : "") + "/term?" + query.toString()
-        );
-        websocket.binaryType = "arraybuffer";
+        websocket.binaryType = 'arraybuffer';
 
-        websocket.onopen = function (event) {
-            // Handle user input and send it to the WebSocket
-            term.onData((data) => websocket.send(new TextEncoder().encode("\x00" + data)));
-
-            // Handle terminal resize and notify the WebSocket
-            term.onResize((data) =>
-                websocket.send(new TextEncoder().encode("\x01" + JSON.stringify(data)))
+        websocket.onopen = () => {
+            // Handle user input and send to WebSocket
+            term.onData((data) =>
+                websocket.send(new TextEncoder().encode("\x00" + data))
             );
 
-            // Update document title when terminal title changes
-            term.onTitleChange((title) => (document.title = title));
+            // Handle terminal resize events
+            term.onResize((size) => {
+                websocket.send(
+                    new TextEncoder().encode("\x01" + JSON.stringify(size))
+                );
+            });
 
             // Display WebSocket messages in the terminal
-            websocket.onmessage = ({ data }) => term.write(new Uint8Array(data));
+            websocket.onmessage = ({ data }) => {
+                term.write(new Uint8Array(data));
+            };
         };
 
-        websocket.onclose = (event) => {
-            // Notify user and destroy terminal on WebSocket close
-            term.write("\r\nSession terminated\r\n");
+        websocket.onclose = () => {
+            term.write('\r\nSession terminated\r\n');
             term.destroy();
         };
 
-        // Automatically resize terminal when window resizes
-        function reportWindowSize() {
-            fit.fit();
-        }
-        window.onresize = reportWindowSize;
+        // Automatically fit terminal to window size
+        window.addEventListener('resize', () => fitAddon.fit());
     </script>
 </body>
 </html>
