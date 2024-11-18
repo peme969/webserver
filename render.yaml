@@ -1,0 +1,8 @@
+services:
+  - name: websocket-python-terminal
+    type: web
+    env: node
+    region: oregon
+    buildCommand: npm install
+    startCommand: node server.js
+    plan: free
